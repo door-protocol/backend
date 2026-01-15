@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: door-protocol-backend
+    runtime: node
+    buildCommand: yarn install && yarn build
+    startCommand: yarn start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # 아래 환경변수는 Render 대시보드에서 직접 설정하세요
+      - key: RPC_URL
+        sync: false
+      - key: PRIVATE_KEY
+        sync: false
+      - key: USDC_ADDRESS
+        sync: false
+      - key: SENIOR_VAULT_ADDRESS
+        sync: false
+      - key: JUNIOR_VAULT_ADDRESS
+        sync: false
+      - key: CORE_VAULT_ADDRESS
+        sync: false
+      - key: EPOCH_MANAGER_ADDRESS
+        sync: false
+      - key: SAFETY_MODULE_ADDRESS
+        sync: false
+    healthCheckPath: /api/health
+    autoDeploy: true
