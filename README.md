@@ -48,14 +48,20 @@ backend/
 ├── src/
 │   ├── index.ts              # Express 서버 엔트리
 │   ├── api/                   # REST API 라우터
-│   │   ├── vault.ts          # Vault 통계 API
+│   │   ├── vault.ts          # Vault 통계 API + 금리 히스토리
 │   │   ├── user.ts           # 사용자 포지션 API
 │   │   ├── epoch.ts          # Epoch 정보 API
 │   │   └── admin.ts          # 관리자 API (데모용)
 │   ├── services/
 │   │   ├── blockchain.ts     # 블록체인 상호작용
+│   │   ├── database.ts       # Prisma DB 서비스
 │   │   └── abis.ts           # 컨트랙트 ABI
 │   └── oracle/               # Rate Oracle 서비스
+│       ├── index.ts          # Oracle 메인 (cron 스케줄러)
+│       ├── collectors.ts     # 외부 API 금리 수집기
+│       └── pusher.ts         # 온체인 푸시 (서킷 브레이커 포함)
+├── prisma/
+│   └── schema.prisma         # 데이터베이스 스키마
 ├── scripts/
 │   ├── demo-scenario.sh      # 데모 시나리오 스크립트
 │   └── deploy-and-setup.sh   # 배포 및 설정 스크립트
@@ -371,7 +377,9 @@ npm run dev
 | `/api/vault/stats` | GET | Vault 통계 (TVL, APY, 비율) |
 | `/api/vault/tvl` | GET | Total Value Locked |
 | `/api/vault/apy` | GET | 현재 APY 정보 |
-| `/api/vault/rates/history` | GET | 금리 히스토리 (`?period=7d`) |
+| `/api/vault/rates/history` | GET | 금리 히스토리 (`?period=7d\|30d\|90d\|1y`) |
+| `/api/vault/rates/latest` | GET | 최신 DOR 업데이트 (소스별 상세) |
+| `/api/vault/rates/source/:id` | GET | 특정 소스 금리 히스토리 (`?days=30`) |
 
 ### User
 | Endpoint | Method | 설명 |
@@ -464,12 +472,87 @@ Error: nonce has already been used
 
 ---
 
+## 🔧 환경 변수
+
+`.env` 파일에 설정 가능한 환경 변수:
+
+```bash
+# Network
+RPC_URL=https://rpc.sepolia.mantle.xyz
+PRIVATE_KEY=0x...
+
+# Contract Addresses
+CORE_VAULT_ADDRESS=0x...
+SENIOR_VAULT_ADDRESS=0x...
+JUNIOR_VAULT_ADDRESS=0x...
+EPOCH_MANAGER_ADDRESS=0x...
+SAFETY_MODULE_ADDRESS=0x...
+USDC_ADDRESS=0x...
+ORACLE_ADDRESS=0x...
+
+# Database (PostgreSQL)
+DATABASE_URL=postgresql://user:pass@localhost:5432/door_protocol
+USE_DATABASE=true
+
+# Oracle
+CRON_SCHEDULE=0 */6 * * *  # 매 6시간마다
+USE_SIGNATURE=false
+
+# Server
+PORT=3001
+NODE_ENV=development
+```
+
+---
+
+## 🗄️ 데이터베이스 설정 (선택)
+
+금리 히스토리를 영구 저장하려면 PostgreSQL을 설정하세요:
+
+```bash
+# 1. Prisma 클라이언트 생성
+npm run db:generate
+
+# 2. 데이터베이스 스키마 적용
+npm run db:push
+
+# 3. (선택) Prisma Studio로 데이터 확인
+npm run db:studio
+```
+
+---
+
+## ⏰ Oracle 서비스
+
+DOR(Decentralized Offered Rate)를 수집하고 온체인에 푸시하는 서비스:
+
+```bash
+# 한 번 실행 (수집 + 푸시)
+npm run oracle
+
+# 드라이런 (트랜잭션 없이 테스트)
+npm run oracle:dry
+
+# 크론 모드 (6시간마다 자동 실행)
+npm run oracle -- --cron
+```
+
+### 수집 소스
+- **TESR**: Treehouse Ethereum Staking Rate (20%)
+- **mETH**: Mantle LST APY (30%)
+- **SOFR**: NY Fed Secured Overnight Financing Rate (25%)
+- **Aave USDT**: Aave V3 USDT 공급 금리 (15%)
+- **Ondo USDY**: Ondo Finance USDY 수익률 (10%)
+
+---
+
 ## 📝 참고사항
 
 - 이 백엔드는 **데모 목적**으로 설계되었습니다
 - 프로덕션 사용 시 **인증/권한 시스템** 추가 필요
 - Admin API는 데모 시연용이며 실제로는 스마트 컨트랙트로 직접 호출
 - USDC 단위는 6 decimals (1 USDC = 1,000,000)
+- 데이터베이스 없이도 동작 (mock 데이터 폴백)
 
 ---
 
