@@ -189,7 +189,3 @@ CRON_SCHEDULE=0 */6 * * *
 - [Mantle Sepolia Explorer](https://explorer.sepolia.mantle.xyz/)
 - [Mantle Sepolia Faucet](https://faucet.sepolia.mantle.xyz/)
 - [Foundry Book](https://book.getfoundry.sh/)
-
----
-
-Built with ❤️ for Mantle Hackathon
